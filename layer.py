@@ -2,7 +2,7 @@
 # coding: utf-8
 
 import numpy as np
-from helper import relu, relu_grad, sigmoid, sigmoid_grad, tanh, tanh_grad
+from helper import relu, relu_grad, sigmoid, sigmoid_grad, tanh, tanh_grad, softmax, softmax_grad
 
 
 
@@ -46,6 +46,26 @@ class MSECostLayer(CostLayer):
         return predicts - labels
 
 
+class SoftMaxCostLayer(CostLayer):
+
+    """
+    Softmax Cost Layer
+    """
+
+    def loss(self, labels, predicts):
+        """
+        loss function
+        """
+        return 0 - np.sum(np.sum(labels * np.log(predicts), axis=0))
+
+
+    def grad(self, labels, predicts):
+        """
+        grad function
+        """
+        return predicts - labels
+
+
 
 class Activation(object):
 
@@ -58,7 +78,8 @@ class Activation(object):
         func_map = {
             "relu": (relu, relu_grad),
             "tanh": (tanh, tanh_grad),
-            "sigmoid": (sigmoid, sigmoid_grad)
+            "sigmoid": (sigmoid, sigmoid_grad),
+            "softmax": (softmax, softmax_grad)
         }
         self.fun, self.fun_d = func_map[func]
 

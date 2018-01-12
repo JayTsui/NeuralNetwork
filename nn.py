@@ -5,7 +5,7 @@ import gzip
 import pickle
 import numpy as np
 from helper import one_hot
-from layer import LinearLayer, Activation, MSECostLayer
+from layer import LinearLayer, Activation, MSECostLayer, SoftMaxCostLayer
 
 class NeutraNetwork(object):
 
@@ -222,12 +222,12 @@ def main():
             # LinearLayer(64, Activation('relu')),
             LinearLayer(32, Activation('relu')),
             # LinearLayer(32, Activation('relu')),
-            LinearLayer(num_range, Activation('sigmoid')),
+            LinearLayer(num_range, Activation('softmax')),
         ],
-        MSECostLayer()
+        SoftMaxCostLayer()
     )
 
-    # model.grad_check(valid_x[:, : 1000], valid_y[:1000])
+    model.grad_check(valid_x[:, : 1000], valid_y[:1000])
 
     # Train neural network
     print 'Training neural network'

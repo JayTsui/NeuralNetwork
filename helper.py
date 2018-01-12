@@ -67,3 +67,18 @@ def unhot(one_hot_labels):
     decode one hot
     """
     return np.argmax(one_hot_labels, axis=0)
+
+
+def softmax(input_x):
+    """
+    softmax
+    """
+    _exp = np.exp(input_x - np.amax(input_x, axis=0, keepdims=True))
+    return _exp / np.sum(_exp, axis=0, keepdims=True)
+
+
+def softmax_grad(_):
+    """
+    softmax grad
+    """
+    return 1
