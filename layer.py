@@ -124,21 +124,19 @@ class LinearLayer(object):
         self.act_fun = act_fun
         self.param_w = None
         self.param_b = None
-        self.learning_rate = None
         self.cache_x = None
         self.cache_z = None
         self.grad_w = None
         self.grad_b = None
 
 
-    def setup(self, input_shape, learning_rate):
+    def setup(self, input_shape):
         """
         setup function
         """
         self.param_w = np.random.rand(self.n_out, input_shape) * .01
         # self.param_b = np.random.rand(self.n_out, 1) * .01
         self.param_b = np.zeros((self.n_out, 1))
-        self.learning_rate = learning_rate
 
 
     def forward(self, input_x):
@@ -160,11 +158,7 @@ class LinearLayer(object):
 
         self.grad_w = grad_w
         self.grad_b = grad_b
-        # fix
-        tmp_param_w = self.param_w
-        self.param_w -= self.learning_rate * grad_w
-        self.param_b -= self.learning_rate * grad_b
-        return np.dot(tmp_param_w.T, grad_z)
+        return np.dot(self.param_w.T, grad_z)
 
 
 

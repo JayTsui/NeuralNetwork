@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+"""
+神经网络算法
+"""
+
 import gzip
 import pickle
 import numpy as np
 from helper import one_hot
-from layer import LinearLayer, Activation, MSECostLayer, SoftMaxCostLayer
+from layer import LinearLayer, Activation, SoftMaxCostLayer
 
 class NeutraNetwork(object):
 
@@ -13,19 +17,20 @@ class NeutraNetwork(object):
     Neutral Network Model
     """
 
-    def __init__(self, layers, cost_fun):
+    def __init__(self, layers, cost_fun, learning_rate=0.01):
+        self.n_classes = None
         self.layers = layers
         self.cost_fun = cost_fun
-        self.n_classes = None
+        self.learning_rate = learning_rate
 
 
-    def setup(self, input_shape, learning_rate):
+    def setup(self, input_shape):
         """
         init layer
         """
         input_n = input_shape
         for layer in self.layers:
-            layer.setup(input_n, learning_rate)
+            layer.setup(input_n)
             input_n = layer.n_out
         self.n_classes = input_n
 
@@ -42,14 +47,19 @@ class NeutraNetwork(object):
         for layer in reversed(self.layers):
             input_grad = layer.backward(input_grad)
 
+        for layer in self.layers:
+            layer.param_w -= self.learning_rate * layer.grad_w
+            layer.param_b -= self.learning_rate * layer.grad_b
 
-    def train(self, input_x, labels, num_epochs=10, batch_size=32, learning_rate=0.01):
+
+    def train(self, input_x, labels, num_epochs=10, batch_size=32, model_file=None):
         """
         train function
         """
+        self.setup(input_x.shape[0])
+        if model_file:
+            self.load_model(model_file)
         n_batch = input_x.shape[1] // batch_size
-        input_shape = input_x.shape[0]
-        self.setup(input_shape, learning_rate)
 
         num_now = 0
         while num_now < num_epochs:
@@ -58,14 +68,13 @@ class NeutraNetwork(object):
             for i in range(n_batch):
                 batch_begin = i * batch_size
                 batch_end = batch_begin + batch_size
-                input_y = labels[batch_begin: batch_end]
-                input_a = input_x[:, batch_begin: batch_end]
-
-                self.gradient_descent(input_a, input_y)
+                batch_input_y = labels[batch_begin: batch_end]
+                batch_input_x = input_x[:, batch_begin: batch_end]
+                self.gradient_descent(batch_input_x, batch_input_y)
 
             v_loss = self.loss(input_x, labels)
             v_error = self.error(input_x, labels)
-            print "iter: %i, loss %.4f, train error %.4f" % (num_now, v_loss, v_error)
+            print("iter: %i, loss %.4f, train error %.4f" % (num_now, v_loss, v_error))
 
 
     def loss(self, input_x, labels):
@@ -121,6 +130,26 @@ class NeutraNetwork(object):
         return grad_params
 
 
+    def save_model(self, filename):
+        """
+        save model
+        """
+        model_data = self.get_model_params()
+        model_data = [str(d) for d in model_data]
+        with open(filename, 'w') as _file:
+            _file.write(" ".join(model_data))
+
+
+    def load_model(self, filename):
+        """
+        load model
+        """
+        with open(filename, 'r') as _file:
+            model_data = _file.read()
+            model_data = np.array(model_data.split(), np.float)
+            self.update_model_params(model_data)
+
+
     def update_model_params(self, model_params):
         """
         update model parameters
@@ -152,7 +181,7 @@ class NeutraNetwork(object):
         grad_error = 0
 
         for _ in range(count):
-            self.setup(input_x.shape[0], learning_rate=0.1)
+            self.setup(input_x.shape[0])
 
             params = self.get_model_params()
 
@@ -174,7 +203,7 @@ class NeutraNetwork(object):
             # print grad, grad_params[index], np.abs(grad_params[index] - grad)
             grad_error += np.abs(grad_params[index] - grad)
         # Debug grad check
-        print "grad check error: %e\n" % (grad_error / float(count))
+        print("grad check error: %e\n" % (grad_error / float(count)))
 
 
 
@@ -183,7 +212,7 @@ def get_data():
     load data by local
     """
     with gzip.open('mnist.pkl.gz', 'rb') as data_file:
-        train_set, valid_set, test_set = pickle.load(data_file)
+        train_set, valid_set, test_set = pickle.load(data_file, encoding='iso-8859-1')
     return train_set, valid_set, test_set
 
 
@@ -207,35 +236,37 @@ def main():
     """
     main function
     """
-    num_range = 2
+    num_range = 10
     # Load the dataset
     train_set, valid_set, _ = get_data()
 
     train_x, train_y = get_data_range(train_set, num_range=num_range)
     valid_x, valid_y = get_data_range(valid_set, num_range=num_range)
-    print "size x: %s, y: %s" % (train_x.shape, train_y.shape)
+    print("size x: %s, y: %s" % (train_x.shape, train_y.shape))
 
     # n_classes = np.unique(train_y).size
     model = NeutraNetwork(
         [
             LinearLayer(64, Activation('relu')),
-            # LinearLayer(64, Activation('relu')),
             LinearLayer(32, Activation('relu')),
-            # LinearLayer(32, Activation('relu')),
+            LinearLayer(16, Activation('relu')),
             LinearLayer(num_range, Activation('softmax')),
         ],
-        SoftMaxCostLayer()
+        SoftMaxCostLayer(),
+        learning_rate=0.05
     )
 
-    model.grad_check(valid_x[:, : 1000], valid_y[:1000])
+    # model.grad_check(valid_x[:, : 1000], valid_y[:1000])
 
     # Train neural network
-    print 'Training neural network'
-    model.train(train_x, train_y, num_epochs=50, batch_size=32, learning_rate=0.1)
+    print('Training neural network')
+    model.train(train_x, train_y, num_epochs=0, batch_size=32, model_file='data.rc')
 
     # Evaluate on training data
     error = model.error(valid_x, valid_y)
-    print 'valid error rate: %.4f' % error
+    print('valid error rate: %.4f' % error)
+
+    model.save_model('data.rc')
 
 
 if __name__ == '__main__':
