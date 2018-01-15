@@ -92,7 +92,7 @@ class CoverLayer(object):
     Base Layer Interface
     """
 
-    def setup(self, input_shape, learning_rate):
+    def setup(self, input_shape):
         """
         setup function
         """
@@ -171,26 +171,28 @@ class ConvolutionLayer(CoverLayer):
     Conv Layer
     """
 
-    def __init__(self, stride, padding, act_fun):
+    def __init__(self, kernel_shape, act_fun, stride=1, padding=None):
+        self.kernel_shape = kernel_shape
         self.stride = stride
         self.padding = padding
         self.act_fun = act_fun
         self.conv_w = None
         self.conv_b = None
-        self.learning_rate = None
+        self.grad_w = None
+        self.grad_b = None
         self.cache_x = None
         self.cache_z = None
         self.cache_pad_h = 0
         self.cache_pad_w = 0
 
 
-    def setup(self, input_shape, learning_rate):
+    def setup(self, input_shape):
         """
         setup function
         """
-        self.conv_w = np.random.rand(input_shape)
-        self.conv_b = np.zeros((1, input_shape[0]))
-        self.learning_rate = learning_rate
+        self.kernel_shape[1] = input_shape
+        self.conv_w = np.random.rand(self.kernel_shape)
+        self.conv_b = np.zeros((1, self.kernel_shape[0]))
 
 
     def calc_padding(self, input_shape, kernel_shape):
@@ -275,6 +277,103 @@ class ConvolutionLayer(CoverLayer):
                     for f in range(conv_w_n):
                         grad_x[i, :, begin_h: end_h, begin_w: end_w] += self.conv_w[f] * grad_z
 
-        self.conv_w -= self.learning_rate * grad_w
-        self.conv_b -= self.learning_rate * grad_b
+        self.grad_w = grad_w
+        self.grad_b = grad_b
         return grad_x[:, :, self.cache_pad_h: output_rows, self.cache_pad_w: output_cols]
+
+
+
+class PoolLayer(CoverLayer):
+
+    """
+    Pool Layer
+    """
+    def __init__(self, pool_size):
+        self.pool_size = pool_size
+        self.cache_x = None
+
+
+    def setup(self, input_shape):
+        """
+        setup function
+        """
+        pass
+
+
+    def forward(self, input_x):
+        """
+        forward function
+        """
+        self.cache_x = input_x
+        # Pool
+        input_n, input_c, input_rows, input_cols = input_x.shape
+        pool_rows = input_rows / self.pool_size[0]
+        pool_cols = input_cols / self.pool_size[1]
+        pool_output = np.zeros(input_n, input_c, pool_rows, pool_cols)
+        for row in pool_rows:
+            begin_row = row * self.pool_size[0]
+            end_row = begin_row + self.pool_size[0]
+            for col in pool_cols:
+                begin_col = col * self.pool_size[1]
+                end_col = begin_col + self.pool_size[1]
+
+                pool_area = input_x[:, :, begin_row: end_row, begin_col: end_col]
+                pool_output[:, :, row, col] = np.max(pool_area, axis=(2, 3))
+        return pool_output
+
+
+    def backward(self, input_grad):
+        """
+        backward function
+        """
+        grad_x = self.cache_x.shape
+        input_n, input_c, pool_rows, pool_cols = input_grad.shape
+        for row in pool_rows:
+            begin_row = row * self.pool_size[0]
+            end_row = begin_row + self.pool_size[0]
+            for col in pool_cols:
+                begin_col = col * self.pool_size[1]
+                end_col = begin_col + self.pool_size[1]
+                pool_area = self.cache_x[:, :, begin_row: end_row, begin_col: end_col]
+                output_max = np.max(pool_area, axis=(2, 3))
+
+                for num in input_n:
+                    for channel in input_c:
+                        point = np.where(self.cache_x[num, channel, :, :], output_max[num, channel])
+                        grad_x[num, channel, point[0], point[1]] = 1
+        return grad_x
+
+
+
+class FlattenLayer(CoverLayer):
+
+    """
+    Flatten Layer
+    """
+
+    def __init__(self):
+        self.flatten_shape = None
+        self.original_shape = None
+
+
+    def setup(self, input_shape):
+        """
+        setup function
+        """
+        pass
+
+
+    def forward(self, input_x):
+        """
+        forward function
+        """
+        self.original_shape = input_x.shape
+        self.flatten_shape = (input_x.shape[0], np.prod(input_x.shape[1:]))
+        return input_x.reshape(self.flatten_shape)
+
+
+    def backward(self, input_grad):
+        """
+        backward function
+        """
+        return input_grad.reshape(self.original_shape)
