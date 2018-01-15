@@ -73,6 +73,8 @@ def softmax(input_x):
     """
     softmax
     """
+    # _exp = np.exp(input_x)
+    # return _exp / np.sum(_exp, axis=0, keepdims=True)
     _exp = np.exp(input_x - np.amax(input_x, axis=0, keepdims=True))
     return _exp / np.sum(_exp, axis=0, keepdims=True)
 

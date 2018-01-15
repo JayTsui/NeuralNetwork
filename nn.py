@@ -5,7 +5,7 @@ import gzip
 import pickle
 import numpy as np
 from helper import one_hot
-from layer import LinearLayer, Activation, MSECostLayer, SoftMaxCostLayer
+from layer import LinearLayer, Activation, SoftMaxCostLayer
 
 class NeutraNetwork(object):
 
@@ -13,19 +13,20 @@ class NeutraNetwork(object):
     Neutral Network Model
     """
 
-    def __init__(self, layers, cost_fun):
+    def __init__(self, layers, cost_fun, learning_rate=0.01):
+        self.n_classes = None
         self.layers = layers
         self.cost_fun = cost_fun
-        self.n_classes = None
+        self.learning_rate = learning_rate
 
 
-    def setup(self, input_shape, learning_rate):
+    def setup(self, input_shape):
         """
         init layer
         """
         input_n = input_shape
         for layer in self.layers:
-            layer.setup(input_n, learning_rate)
+            layer.setup(input_n)
             input_n = layer.n_out
         self.n_classes = input_n
 
@@ -42,14 +43,18 @@ class NeutraNetwork(object):
         for layer in reversed(self.layers):
             input_grad = layer.backward(input_grad)
 
+        for layer in self.layers:
+            layer.param_w -= self.learning_rate * layer.grad_w
+            layer.param_b -= self.learning_rate * layer.grad_b
 
-    def train(self, input_x, labels, num_epochs=10, batch_size=32, learning_rate=0.01):
+
+    def train(self, input_x, labels, num_epochs=10, batch_size=32):
         """
         train function
         """
         n_batch = input_x.shape[1] // batch_size
         input_shape = input_x.shape[0]
-        self.setup(input_shape, learning_rate)
+        self.setup(input_shape)
 
         num_now = 0
         while num_now < num_epochs:
@@ -152,7 +157,7 @@ class NeutraNetwork(object):
         grad_error = 0
 
         for _ in range(count):
-            self.setup(input_x.shape[0], learning_rate=0.1)
+            self.setup(input_x.shape[0])
 
             params = self.get_model_params()
 
@@ -207,7 +212,7 @@ def main():
     """
     main function
     """
-    num_range = 2
+    num_range = 10
     # Load the dataset
     train_set, valid_set, _ = get_data()
 
@@ -219,9 +224,9 @@ def main():
     model = NeutraNetwork(
         [
             LinearLayer(64, Activation('relu')),
-            # LinearLayer(64, Activation('relu')),
             LinearLayer(32, Activation('relu')),
-            # LinearLayer(32, Activation('relu')),
+            LinearLayer(16, Activation('relu')),
+            # LinearLayer(16, Activation('relu')),
             LinearLayer(num_range, Activation('softmax')),
         ],
         SoftMaxCostLayer()
@@ -231,7 +236,7 @@ def main():
 
     # Train neural network
     print 'Training neural network'
-    model.train(train_x, train_y, num_epochs=50, batch_size=32, learning_rate=0.1)
+    model.train(train_x, train_y, num_epochs=50, batch_size=32)
 
     # Evaluate on training data
     error = model.error(valid_x, valid_y)

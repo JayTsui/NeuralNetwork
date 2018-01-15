@@ -56,7 +56,8 @@ class SoftMaxCostLayer(CostLayer):
         """
         loss function
         """
-        return 0 - np.sum(np.sum(labels * np.log(predicts), axis=0))
+        res = 0 - np.sum(np.sum(labels * np.log(predicts), axis=0))
+        return res
 
 
     def grad(self, labels, predicts):
@@ -124,21 +125,21 @@ class LinearLayer(object):
         self.act_fun = act_fun
         self.param_w = None
         self.param_b = None
-        self.learning_rate = None
+        self.weight_decay = None
         self.cache_x = None
         self.cache_z = None
         self.grad_w = None
         self.grad_b = None
 
 
-    def setup(self, input_shape, learning_rate):
+    def setup(self, input_shape, weight_decay=0.001):
         """
         setup function
         """
         self.param_w = np.random.rand(self.n_out, input_shape) * .01
         # self.param_b = np.random.rand(self.n_out, 1) * .01
         self.param_b = np.zeros((self.n_out, 1))
-        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
 
 
     def forward(self, input_x):
@@ -158,13 +159,11 @@ class LinearLayer(object):
         grad_w = np.dot(grad_z, self.cache_x.T) / input_grad.shape[1]
         grad_b = np.mean(grad_z, axis=1, keepdims=True)
 
+        # self.grad_w = grad_w + self.weight_decay * self.param_w
         self.grad_w = grad_w
         self.grad_b = grad_b
-        # fix
-        tmp_param_w = self.param_w
-        self.param_w -= self.learning_rate * grad_w
-        self.param_b -= self.learning_rate * grad_b
-        return np.dot(tmp_param_w.T, grad_z)
+        # print("params: ", np.max(self.param_w), np.max(self.param_b))
+        return np.dot(self.param_w.T, grad_z)
 
 
 
