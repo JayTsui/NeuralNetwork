@@ -56,7 +56,8 @@ class SoftMaxCostLayer(CostLayer):
         """
         loss function
         """
-        return 0 - np.sum(np.sum(labels * np.log(predicts), axis=0))
+        res = 0 - np.sum(np.sum(labels * np.log(predicts), axis=0))
+        return res
 
 
     def grad(self, labels, predicts):
@@ -156,8 +157,10 @@ class LinearLayer(object):
         grad_w = np.dot(grad_z, self.cache_x.T) / input_grad.shape[1]
         grad_b = np.mean(grad_z, axis=1, keepdims=True)
 
+        # self.grad_w = grad_w + self.weight_decay * self.param_w
         self.grad_w = grad_w
         self.grad_b = grad_b
+        # print("params: ", np.max(self.param_w), np.max(self.param_b))
         return np.dot(self.param_w.T, grad_z)
 
 
