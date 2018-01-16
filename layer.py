@@ -309,11 +309,11 @@ class PoolLayer(CoverLayer):
         input_n, input_c, input_rows, input_cols = input_x.shape
         pool_rows = input_rows / self.pool_size[0]
         pool_cols = input_cols / self.pool_size[1]
-        pool_output = np.zeros(input_n, input_c, pool_rows, pool_cols)
-        for row in pool_rows:
+        pool_output = np.zeros((input_n, input_c, pool_rows, pool_cols))
+        for row in range(pool_rows):
             begin_row = row * self.pool_size[0]
             end_row = begin_row + self.pool_size[0]
-            for col in pool_cols:
+            for col in range(pool_cols):
                 begin_col = col * self.pool_size[1]
                 end_col = begin_col + self.pool_size[1]
 
@@ -326,22 +326,22 @@ class PoolLayer(CoverLayer):
         """
         backward function
         """
-        grad_x = self.cache_x.shape
+        grad_out = np.zeros((self.cache_x.shape))
         input_n, input_c, pool_rows, pool_cols = input_grad.shape
-        for row in pool_rows:
+        for row in range(pool_rows):
             begin_row = row * self.pool_size[0]
             end_row = begin_row + self.pool_size[0]
-            for col in pool_cols:
+            for col in range(pool_cols):
                 begin_col = col * self.pool_size[1]
                 end_col = begin_col + self.pool_size[1]
                 pool_area = self.cache_x[:, :, begin_row: end_row, begin_col: end_col]
                 output_max = np.max(pool_area, axis=(2, 3))
 
-                for num in input_n:
-                    for channel in input_c:
-                        point = np.where(self.cache_x[num, channel, :, :], output_max[num, channel])
-                        grad_x[num, channel, point[0], point[1]] = 1
-        return grad_x
+                for num in range(input_n):
+                    for channel in range(input_c):
+                        point = np.where(pool_area[num, channel, :, :] == output_max[num, channel])
+                        grad_out[num, channel, begin_row + point[0], begin_col + point[1]] = 1
+        return grad_out
 
 
 
