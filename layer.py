@@ -80,7 +80,8 @@ class Activation(object):
             "relu": (relu, relu_grad),
             "tanh": (tanh, tanh_grad),
             "sigmoid": (sigmoid, sigmoid_grad),
-            "softmax": (softmax, softmax_grad)
+            "softmax": (softmax, softmax_grad),
+            "same": (lambda x: x, lambda x: x)
         }
         self.fun, self.fun_d = func_map[func]
 
@@ -190,9 +191,11 @@ class ConvolutionLayer(CoverLayer):
         """
         setup function
         """
-        self.kernel_shape[1] = input_shape
-        self.conv_w = np.random.rand(self.kernel_shape)
-        self.conv_b = np.zeros((1, self.kernel_shape[0]))
+        kernel_shape = list(self.kernel_shape)
+        kernel_shape[1] = input_shape[1]
+        self.kernel_shape = tuple(kernel_shape)
+        self.conv_w = np.random.rand(*kernel_shape)
+        self.conv_b = np.zeros((input_shape[0], 1))
 
 
     def calc_padding(self, input_shape, kernel_shape):
@@ -221,7 +224,7 @@ class ConvolutionLayer(CoverLayer):
             output = np.zeros(input_x.shape)
         else:
             res_xp = input_x
-            conv_w_n, _, conv_w_rows, conv_w_cols = self.conv_w[2:]
+            conv_w_n, _, conv_w_rows, conv_w_cols = self.conv_w.shape
             out_h = (rows - conv_w_rows) / self.stride + 1
             out_w = (cols - conv_w_cols) / self.stride + 1
             output = np.zeros((input_n, conv_w_n, out_h, out_w))
@@ -233,19 +236,19 @@ class ConvolutionLayer(CoverLayer):
         convolution forward function
         """
         self.cache_x, output = self.padding_input(input_x)
-
-        input_rows, input_cols = self.conv_w.shape[2:]
+        output_rows, output_cols = output.shape[2:]
         conv_w_n, _, conv_w_rows, conv_w_cols = self.conv_w.shape
 
         for f in range(conv_w_n):
-            for row in range(input_rows):
-                for col in range(input_cols):
+            for row in range(output_rows):
+                for col in range(output_cols):
                     begin_h = self.stride * row
                     begin_w = self.stride * col
                     end_h = begin_h + conv_w_rows
                     end_w = begin_w + conv_w_cols
-                    window_x = self.cache_x[:, f, begin_h: end_h, begin_w: end_w]
-                    output[:, f, row, col] = np.sum(window_x * self.conv_w[f], axis=[1, 2, 3])
+                    window_x = self.cache_x[:, :, begin_h: end_h, begin_w: end_w]
+
+                    output[:, f, row, col] = np.sum(window_x * self.conv_w[f], axis=(1, 2, 3))
             output[:, f, :, :] += self.conv_b[f]
         self.cache_z = output
         return self.act_fun.fun(output)

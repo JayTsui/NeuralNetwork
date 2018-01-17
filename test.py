@@ -6,7 +6,7 @@ test unit
 """
 
 import numpy as np
-from layer import PoolLayer
+from layer import PoolLayer, FlattenLayer, ConvolutionLayer, Activation
 
 
 def pool_layer():
@@ -21,11 +21,37 @@ def pool_layer():
     # print(pool.backward(output))
 
 
+def flatten_layer():
+    """
+    FlattenLayer
+    """
+    input_x = np.arange(0, 64).reshape((2, 2, 4, 4))
+    flatten = FlattenLayer()
+    output = flatten.forward(input_x)
+    print input_x
+    print output
+    print flatten.backward(output)
+
+
+def conv_layer():
+    """
+    ConvolutionLayer
+    """
+    x_shape = (2, 3, 4, 4)
+    w_shape = (2, 3, 3, 3)
+    input_x = np.ones(x_shape)
+    conv = ConvolutionLayer(w_shape, Activation('same'))
+    conv.setup(x_shape)
+    print input_x
+    output = conv.forward(input_x)
+    print output.shape, output
+
+
 def main():
     """
     main function
     """
-    pool_layer()
+    conv_layer()
 
 if __name__ == '__main__':
     main()
