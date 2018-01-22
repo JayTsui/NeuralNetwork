@@ -5,7 +5,8 @@
 神经网络算法
 """
 
-
+import gzip
+import pickle
 import numpy as np
 from helper import one_hot
 from layer import LinearLayer, FlattenLayer, ConvolutionLayer, Activation, SoftMaxCostLayer
@@ -205,18 +206,33 @@ class ConvNeutraNetwork(object):
 
 
 
+def get_data():
+    """
+    load data by local
+    """
+    with gzip.open('mnist.pkl.gz', 'rb') as data_file:
+        train_set, valid_set, test_set = pickle.load(data_file)
+    return train_set, valid_set, test_set
+
+
+def get_data_range(data_set):
+    """
+    get data range
+    """
+    data_x = data_set[0]
+    data_y = data_set[1]
+    data_x = data_x.reshape((data_x.shape[0], 1, 28, 28))
+    return data_x, data_y
+
 def main():
     """
     main function
     """
-    num_range = 10
     # Load the dataset
-    from tensorflow.examples.tutorials.mnist import input_data
-    mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
     train_set, valid_set, _ = get_data()
 
-    train_x, train_y = get_data_range(train_set, num_range=num_range)
-    valid_x, valid_y = get_data_range(valid_set, num_range=num_range)
+    train_x, train_y = get_data_range(train_set)
+    valid_x, valid_y = get_data_range(valid_set)
     print("size x: %s, y: %s" % (train_x.shape, train_y.shape))
 
     # n_classes = np.unique(train_y).size
@@ -227,7 +243,7 @@ def main():
             FlattenLayer(),
             LinearLayer(64, Activation('relu')),
             LinearLayer(32, Activation('relu')),
-            LinearLayer(num_range, Activation('softmax')),
+            LinearLayer(10, Activation('softmax')),
         ],
         SoftMaxCostLayer(),
         learning_rate=0.05

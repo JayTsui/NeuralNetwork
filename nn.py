@@ -31,7 +31,7 @@ class NeutraNetwork(object):
         input_n = input_shape
         for layer in self.layers:
             layer.setup(input_n)
-            input_n = layer.n_out
+            input_n = layer.get_output_shape()
         self.n_classes = input_n
 
 
@@ -212,7 +212,7 @@ def get_data():
     load data by local
     """
     with gzip.open('mnist.pkl.gz', 'rb') as data_file:
-        train_set, valid_set, test_set = pickle.load(data_file, encoding='iso-8859-1')
+        train_set, valid_set, test_set = pickle.load(data_file)
     return train_set, valid_set, test_set
 
 

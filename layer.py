@@ -114,6 +114,13 @@ class CoverLayer(object):
         raise NotImplementedError()
 
 
+    def get_output_shape(self):
+        """
+        get output shape
+        """
+        raise NotImplementedError()
+
+
 
 class LinearLayer(object):
 
@@ -165,6 +172,13 @@ class LinearLayer(object):
         return np.dot(self.param_w.T, grad_z)
 
 
+    def get_output_shape(self):
+        """
+        get output shape
+        """
+        return self.n_out
+
+
 
 class ConvolutionLayer(CoverLayer):
 
@@ -183,6 +197,7 @@ class ConvolutionLayer(CoverLayer):
         self.grad_b = None
         self.cache_x = None
         self.cache_z = None
+        self.output_shape = None
         self.cache_pad_h = 0
         self.cache_pad_w = 0
 
@@ -196,6 +211,12 @@ class ConvolutionLayer(CoverLayer):
         self.kernel_shape = tuple(kernel_shape)
         self.conv_w = np.random.rand(*kernel_shape)
         self.conv_b = np.zeros((input_shape[0], 1))
+        # calc output
+        pad_h, pad_w = 0, 0
+        if self.padding == "SAME":
+            pad_h, pad_w = self.calc_padding(input_shape, self.conv_w.shape)
+        self.output_shape = (
+            input_shape[0], input_shape[1], input_shape[2] + pad_h, input_shape[3] + pad_w)
 
 
     def calc_padding(self, input_shape, kernel_shape):
@@ -239,7 +260,7 @@ class ConvolutionLayer(CoverLayer):
         output_rows, output_cols = output.shape[2:]
         conv_w_n, _, conv_w_rows, conv_w_cols = self.conv_w.shape
 
-        for f in range(conv_w_n):
+        for f_num in range(conv_w_n):
             for row in range(output_rows):
                 for col in range(output_cols):
                     begin_h = self.stride * row
@@ -248,8 +269,9 @@ class ConvolutionLayer(CoverLayer):
                     end_w = begin_w + conv_w_cols
                     window_x = self.cache_x[:, :, begin_h: end_h, begin_w: end_w]
 
-                    output[:, f, row, col] = np.sum(window_x * self.conv_w[f], axis=(1, 2, 3))
-            output[:, f, :, :] += self.conv_b[f]
+                    output[:, f_num, row, col] = np.sum(
+                        window_x * self.conv_w[f_num], axis=(1, 2, 3))
+            output[:, f_num, :, :] += self.conv_b[f_num]
         self.cache_z = output
         return self.act_fun.fun(output)
 
@@ -265,7 +287,7 @@ class ConvolutionLayer(CoverLayer):
 
         grad_x = np.zeros(self.cache_x.shape)
         grad_w = np.zeros(self.conv_w.shape)
-        grad_b = np.sum(grad_z, axis=[0, 2, 3])
+        grad_b = np.sum(grad_z, axis=(0, 2, 3))
 
         for i in range(output_n):
             for row in range(output_rows):
@@ -275,14 +297,23 @@ class ConvolutionLayer(CoverLayer):
                     end_h = begin_h + conv_w_rows
                     end_w = begin_w + conv_w_cols
                     window_x = self.cache_x[i, :, begin_h: end_h, begin_w: end_w]
-                    grad_w += window_x * grad_z
-
-                    for f in range(conv_w_n):
-                        grad_x[i, :, begin_h: end_h, begin_w: end_w] += self.conv_w[f] * grad_z
+                    # calc grad
+                    for f_num in range(conv_w_n):
+                        grad_z_point = grad_z[i, f_num, row, col]
+                        grad_w[f_num] += window_x * grad_z_point
+                        grad_x[i, :, begin_h: end_h, begin_w: end_w] += \
+                            self.conv_w[f_num] * grad_z_point
 
         self.grad_w = grad_w
         self.grad_b = grad_b
         return grad_x[:, :, self.cache_pad_h: output_rows, self.cache_pad_w: output_cols]
+
+
+    def get_output_shape(self):
+        """
+        get output shape
+        """
+        return self.output_shape
 
 
 
@@ -294,13 +325,17 @@ class PoolLayer(CoverLayer):
     def __init__(self, pool_size):
         self.pool_size = pool_size
         self.cache_x = None
+        self.output_shape = None
 
 
     def setup(self, input_shape):
         """
         setup function
         """
-        pass
+        input_n, input_c, input_rows, input_cols = input_shape
+        pool_rows = input_rows / self.pool_size[0]
+        pool_cols = input_cols / self.pool_size[1]
+        self.output_shape = (input_n, input_c, pool_rows, pool_cols)
 
 
     def forward(self, input_x):
@@ -309,10 +344,11 @@ class PoolLayer(CoverLayer):
         """
         self.cache_x = input_x
         # Pool
-        input_n, input_c, input_rows, input_cols = input_x.shape
-        pool_rows = input_rows / self.pool_size[0]
-        pool_cols = input_cols / self.pool_size[1]
-        pool_output = np.zeros((input_n, input_c, pool_rows, pool_cols))
+        # input_n, input_c, input_rows, input_cols = input_x.shape
+        # pool_rows = input_rows / self.pool_size[0]
+        # pool_cols = input_cols / self.pool_size[1]
+        pool_rows, pool_cols = self.output_shape[2:]
+        pool_output = np.zeros(self.output_shape)
         for row in range(pool_rows):
             begin_row = row * self.pool_size[0]
             end_row = begin_row + self.pool_size[0]
@@ -347,6 +383,13 @@ class PoolLayer(CoverLayer):
         return grad_out
 
 
+    def get_output_shape(self):
+        """
+        get output shape
+        """
+        return self.output_shape
+
+
 
 class FlattenLayer(CoverLayer):
 
@@ -355,15 +398,16 @@ class FlattenLayer(CoverLayer):
     """
 
     def __init__(self):
-        self.flatten_shape = None
         self.original_shape = None
+        self.flatten_shape = None
+        self.output_shape = None
 
 
     def setup(self, input_shape):
         """
         setup function
         """
-        pass
+        self.output_shape = (input_shape[0], np.prod(input_shape[1:]))
 
 
     def forward(self, input_x):
@@ -380,3 +424,10 @@ class FlattenLayer(CoverLayer):
         backward function
         """
         return input_grad.reshape(self.original_shape)
+
+
+    def get_output_shape(self):
+        """
+        get output shape
+        """
+        return self.output_shape
