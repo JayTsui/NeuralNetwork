@@ -40,6 +40,7 @@ class ConvNeutraNetwork(object):
         grandient descent
         """
         for layer in self.layers:
+            print("forward: %s" % layer.__class__.__name__)
             input_x = layer.forward(input_x)
 
         input_grad = self.cost_fun.grad(one_hot(input_y, self.n_classes), input_x)

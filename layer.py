@@ -262,6 +262,8 @@ class ConvolutionLayer(CoverLayer):
         output_rows, output_cols = output.shape[2:]
         conv_w_n, _, conv_w_rows, conv_w_cols = self.conv_w.shape
 
+        print('forward...')
+
         for f_num in range(conv_w_n):
             for row in range(output_rows):
                 for col in range(output_cols):
@@ -273,6 +275,7 @@ class ConvolutionLayer(CoverLayer):
 
                     output[:, f_num, row, col] = np.sum(
                         window_x * self.conv_w[f_num], axis=(1, 2, 3))
+                print("forward item. num: %s, row: %s" % (f_num, row))
             output[:, f_num, :, :] += self.conv_b[f_num]
         self.cache_z = output
         return self.act_fun.fun(output)
