@@ -9,7 +9,8 @@ import gzip
 import pickle
 import numpy as np
 from helper import one_hot
-from layer import LinearLayer, FlattenLayer, ConvolutionLayer, Activation, SoftMaxCostLayer
+from layer import LinearLayer, PoolLayer, FlattenLayer, \
+                    ConvolutionLayer, Activation, SoftMaxCostLayer
 
 class ConvNeutraNetwork(object):
 
@@ -28,21 +29,20 @@ class ConvNeutraNetwork(object):
         """
         init layer
         """
-        n_out = input_shape
+        data_shape = input_shape
         for layer in self.layers:
-            layer.setup(n_out)
-            n_out = layer.kernel_shape[0]
+            layer.setup(data_shape)
+            data_shape = layer.get_output_shape()
 
 
     def gradient_descent(self, input_x, input_y):
         """
         grandient descent
         """
-        input_a = input_x
         for layer in self.layers:
-            input_a = layer.forward(input_a)
+            input_x = layer.forward(input_x)
 
-        input_grad = self.cost_fun.grad(one_hot(input_y, self.n_classes), input_a)
+        input_grad = self.cost_fun.grad(one_hot(input_y, self.n_classes), input_x)
         for layer in reversed(self.layers):
             input_grad = layer.backward(input_grad)
 
@@ -55,10 +55,10 @@ class ConvNeutraNetwork(object):
         """
         train function
         """
-        self.setup(input_x.shape[1])
+        self.setup(input_x.shape)
         if model_file:
             self.load_model(model_file)
-        n_batch = input_x.shape[1] // batch_size
+        n_batch = input_x.shape[0] // batch_size
 
         num_now = 0
         while num_now < num_epochs:
@@ -238,10 +238,11 @@ def main():
     # n_classes = np.unique(train_y).size
     model = ConvNeutraNetwork(
         [
-            ConvolutionLayer((32, 1, 5, 5), Activation('relu')),
-            ConvolutionLayer((64, 1, 5, 5), Activation('relu')),
+            ConvolutionLayer((32, 1, 3, 3), Activation('relu')),
+            PoolLayer((2, 2)),
+            ConvolutionLayer((64, 1, 3, 3), Activation('relu')),
+            PoolLayer((2, 2)),
             FlattenLayer(),
-            LinearLayer(64, Activation('relu')),
             LinearLayer(32, Activation('relu')),
             LinearLayer(10, Activation('softmax')),
         ],
@@ -253,10 +254,10 @@ def main():
 
     # Train neural network
     print('Training neural network')
-    model.train(train_x, train_y, num_epochs=10, batch_size=32)
+    model.train(train_x[1000:], train_y[1000:], num_epochs=10, batch_size=32)
 
     # Evaluate on training data
-    error = model.error(valid_x, valid_y)
+    error = model.error(valid_x[100:], valid_y[100:])
     print('valid error rate: %.4f' % error)
 
     # model.save_model('data.rc')

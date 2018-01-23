@@ -28,11 +28,11 @@ class NeutraNetwork(object):
         """
         init layer
         """
-        input_n = input_shape
+        data_shape = input_shape
         for layer in self.layers:
-            layer.setup(input_n)
-            input_n = layer.get_output_shape()
-        self.n_classes = input_n
+            layer.setup(data_shape)
+            data_shape = layer.get_output_shape()
+        self.n_classes = data_shape[0]
 
 
     def gradient_descent(self, input_x, input_y):
@@ -56,7 +56,7 @@ class NeutraNetwork(object):
         """
         train function
         """
-        self.setup(input_x.shape[0])
+        self.setup(input_x.shape)
         if model_file:
             self.load_model(model_file)
         n_batch = input_x.shape[1] // batch_size
@@ -181,7 +181,7 @@ class NeutraNetwork(object):
         grad_error = 0
 
         for _ in range(count):
-            self.setup(input_x.shape[0])
+            self.setup(input_x.shape)
 
             params = self.get_model_params()
 
@@ -256,11 +256,11 @@ def main():
         learning_rate=0.05
     )
 
-    # model.grad_check(valid_x[:, : 1000], valid_y[:1000])
+    model.grad_check(valid_x[:, : 1000], valid_y[:1000])
 
     # Train neural network
     print('Training neural network')
-    model.train(train_x, train_y, num_epochs=0, batch_size=32, model_file='data.rc')
+    model.train(train_x, train_y, num_epochs=20, batch_size=32, model_file='data.rc')
 
     # Evaluate on training data
     error = model.error(valid_x, valid_y)

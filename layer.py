@@ -128,8 +128,8 @@ class LinearLayer(object):
     Linear Layer
     """
 
-    def __init__(self, n_out, act_fun):
-        self.n_out = n_out
+    def __init__(self, output_num, act_fun):
+        self.output_shape = (output_num, 0)
         self.act_fun = act_fun
         self.param_w = None
         self.param_b = None
@@ -143,9 +143,11 @@ class LinearLayer(object):
         """
         setup function
         """
-        self.param_w = np.random.rand(self.n_out, input_shape) * .01
+        output_num = self.output_shape[0]
+        self.param_w = np.random.rand(output_num, input_shape[0]) * .01
         # self.param_b = np.random.rand(self.n_out, 1) * .01
-        self.param_b = np.zeros((self.n_out, 1))
+        self.param_b = np.zeros((output_num, 1))
+        self.output_shape = (output_num, input_shape[1])
 
 
     def forward(self, input_x):
@@ -176,7 +178,7 @@ class LinearLayer(object):
         """
         get output shape
         """
-        return self.n_out
+        return self.output_shape
 
 
 
@@ -216,7 +218,7 @@ class ConvolutionLayer(CoverLayer):
         if self.padding == "SAME":
             pad_h, pad_w = self.calc_padding(input_shape, self.conv_w.shape)
         self.output_shape = (
-            input_shape[0], input_shape[1], input_shape[2] + pad_h, input_shape[3] + pad_w)
+            input_shape[0], kernel_shape[0], input_shape[2] + pad_h, input_shape[3] + pad_w)
 
 
     def calc_padding(self, input_shape, kernel_shape):
@@ -407,7 +409,7 @@ class FlattenLayer(CoverLayer):
         """
         setup function
         """
-        self.output_shape = (input_shape[0], np.prod(input_shape[1:]))
+        self.output_shape = (np.prod(input_shape[1:]), input_shape[0])
 
 
     def forward(self, input_x):
@@ -416,13 +418,14 @@ class FlattenLayer(CoverLayer):
         """
         self.original_shape = input_x.shape
         self.flatten_shape = (input_x.shape[0], np.prod(input_x.shape[1:]))
-        return input_x.reshape(self.flatten_shape)
+        return input_x.reshape(self.flatten_shape).T
 
 
     def backward(self, input_grad):
         """
         backward function
         """
+        input_grad = input_grad.T
         return input_grad.reshape(self.original_shape)
 
 
